@@ -94,12 +94,20 @@ if (array_key_exists("group", $args)) {
     if (is_array($args['group'])) {
         foreach($args['group'] as $group) {
             foreach($config['groups'][$group] as $recipient) {
-                sendMail($contents, $config['users'][$recipient]);
+                if (array_key_exists($recipient, $config['users'])) {
+                    sendMail($contents, $config['users'][$recipient]);
+                } else {
+                    echo "User not found: ".$recipient."\n";
+                }
             }
         }
     } else {
         foreach($config['groups'][$args['group']] as $recipient) {
-            sendMail($contents, $config['users'][$recipient]);
+            if (array_key_exists($recipient, $config['users'])) {
+                sendMail($contents, $config['users'][$recipient]);
+            } else {
+                echo "User not found: ".$recipient."\n";
+            }
         }
     }
 }
