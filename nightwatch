@@ -1,0 +1,170 @@
+#!/usr/bin/php
+<?php
+
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\SMTP;
+use PHPMailer\PHPMailer\Exception;
+
+require 'vendor/autoload.php';
+
+$short = "hg:u:c:j:";
+$long = array("help", "group:", "user:", "config:", "job:");
+$args = getopt($short, $long);
+
+$job = "A Job";
+
+$confFile = 'conf.json';
+
+$contents = stream_get_contents(STDIN);
+
+// Config File Override
+if (array_key_exists('config', $args)) {
+    $confFile = $args['config'];
+}
+
+if (array_key_exists("c", $args)) {
+    $confFile = $args['c'];
+}
+
+// Load Config
+$config = (function () use ($confFile) {
+    if (file_exists($confFile)) {
+        $raw = trim(file_get_contents($confFile));
+        return json_decode($raw, true);
+    } else {
+        die("Configuration File not found.");
+    }
+})();
+
+function getMailer() {
+    global $config;
+    $mailer = new PHPMailer(true);
+    $mailer->isSMTP();
+    $mailer->SMTPDebug = SMTP::DEBUG_SERVER;
+    $mailer->Host = $config['mail']['host'];
+    $mailer->SMTPAuth = true;
+    $mailer->Username = $config['mail']['username'];
+    $mailer->Password = $config['mail']['password'];
+    switch (strtoupper($config['mail']['encryption'])) {
+    case 'STARTTLS':
+        echo "STARTTLS Mode";
+        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+        break;
+    case 'SMTPS':
+        $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
+        break;
+    }
+    $mailer->Port = 587;
+    $mailer->setFrom($config['mail']['username'], 'Nightwatch');
+    return $mailer;
+}
+
+function sendMail($body, $recipient) {
+    global $config, $job;
+    
+    $mailer = getMailer();
+    $mailer->addAddress($recipient);
+    $mailer->Subject = $job.' Has Encountered an Error';
+    $mailer->Body = $body;
+    $mailer->send();
+}
+
+
+// Handle Help Flag
+if (array_key_exists("help", $args) || array_key_exists("h", $args)) {
+    echo "nightwatch [-u] [-g] [-j] [-h]\n".
+         "           [--user=]                    Send mail to specific user\n".
+         "           [--group=]                   Send mail to users in group\n".
+         "           [--job=]                     Job Name\n".
+         "           [--config=\"conf.json\"]       Path to configuration file\n".
+         "           [--help]                     Display this prompt\n";
+}
+
+// Handle Job Flag
+if (array_key_exists("job", $args)) {
+    $job = $args['job'];
+}
+
+if (array_key_exists("j", $args)) {
+    $job = $args['j'];
+}
+
+// Handle Long Group Flag
+if (array_key_exists("group", $args)) {
+    if (is_array($args['group'])) {
+        foreach($args['group'] as $group) {
+            foreach($config['groups'][$group] as $recipient) {
+                sendMail($contents, $config['users'][$recipient]);
+            }
+        }
+    } else {
+        foreach($config['groups'][$args['group']] as $recipient) {
+            sendMail($contents, $config['users'][$recipient]);
+        }
+    }
+}
+
+// Handle Short Group Flag
+if (array_key_exists("g", $args)) {
+    if (is_array($args['g'])) {
+        foreach($args['g'] as $group) {
+            print_r($group);
+            foreach($config['groups'][$group] as $recipient) {
+                if (array_key_exists($recipient, $config['users'])) {
+                    sendMail($contents, $config['users'][$recipient]);
+                } else {
+                    echo "User not found: ".$recipient."\n";
+                }
+            }
+        }
+    } else {
+        print_r($config['groups'][$args['g']]);
+        foreach($config['groups'][$args['g']] as $recipient) {
+            if (array_key_exists($recipient, $config['users'])) {
+                sendMail($contents, $config['users'][$recipient]);
+            } else {
+                echo "User not found: ".$recipient."\n";
+            }
+        }
+    }
+}
+
+// Handle Long User Flag
+if (array_key_exists("user", $args)) {
+    if (is_array($args['user'])) {
+        foreach ($args['user'] as $user) {
+            if (array_key_exists($user, $config['users'])) {
+                sendMail($contents, $config['users'][$user]);
+            } else {
+                echo "User not found: ".$user."\n";
+            }
+        }
+    } else {
+        if (array_key_exists($args['user'], $config['users'])) {
+            sendMail($contents, $config['users'][$args['user']]);
+        } else {
+            echo "User not found: ".$args['user']."\n";
+        }
+    }
+}
+
+// Handle Short User Flag
+if (array_key_exists("u", $args)) {
+    if (is_array($args['u'])) {
+        foreach ($args['u'] as $user) {
+            if (array_key_exists($user, $config['users'])) {
+                sendMail($contents, $config['users'][$user]);
+            } else {
+                echo "User not found: ".$user."\n";
+            }
+        }
+    } else {
+        if (array_key_exists($args['u'], $config['users'])) {
+            sendMail($contents, $config['users'][$args['u']]);
+        } else {
+            echo "User not found: ".$args['u']."\n";
+        }
+    }
+}
+
+?>

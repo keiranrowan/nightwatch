@@ -1,0 +1,17 @@
+{
+	"mail" : {
+		"host": "mail.example.com",
+		"username": "user@example.com",
+		"password": "alpine",
+		"encryption": "STARTTLS",
+		"port": 587
+	},
+	"groups" : {
+		"test": [
+			"user"
+		]
+	},
+	"users" : {
+		"user": "user@example.com",
+	}
+}
