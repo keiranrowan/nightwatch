@@ -40,7 +40,17 @@ function getMailer() {
     global $config;
     $mailer = new PHPMailer(true);
     $mailer->isSMTP();
-    $mailer->SMTPDebug = SMTP::DEBUG_SERVER;
+    $mailer->SMTPDebug = 2;
+    if (boolval($config['mail']['exchange'])) {
+        $mailer->SMTPOptions = array(
+	    'ssl' => array(
+	        'verify_peer' => false,
+	        'verify_peer_name' => false,
+	        'allow_self_signed' => true
+	    ) 
+        );
+    }
+    //$mailer->AuthType = 'NTLM';
     $mailer->Host = $config['mail']['host'];
     $mailer->SMTPAuth = true;
     $mailer->Username = $config['mail']['username'];
@@ -48,14 +58,20 @@ function getMailer() {
     switch (strtoupper($config['mail']['encryption'])) {
     case 'STARTTLS':
         echo "STARTTLS Mode";
-        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+        $mailer->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
         break;
     case 'SMTPS':
-        $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
+        $mailer->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
         break;
+    case '':
+    default:
+	echo "NO SSL MODE";
+	$mailer->SMTPAutoTLS = false;
+	$mailer->SMTPSecure = false;
+	break;	
     }
-    $mailer->Port = 587;
-    $mailer->setFrom($config['mail']['username'], 'Nightwatch');
+    $mailer->Port = $config['mail']['port'];
+    $mailer->setFrom($config['mail']['username'], 'Do Not Reply');
     return $mailer;
 }
 
